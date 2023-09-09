@@ -151,6 +151,16 @@ getUserByUsername(settings["TargetUsername"]).then(user_info => {
   SystemStarted = false
 })
 
+app.use((req, res, next) => {
+  ipaddresses = req.header('do-connecting-ip') || req.socket.remoteAddress;
+  console_log_message = `URL: https://api.efaz.dev${req.url} | IPs: ${JSON.stringify(ipaddresses)} | Type: ${req.method} | HTTP Version: ${req.httpVersion}`
+  console.log(console_log_message);
+  if (req.body) {
+    console.log("Request has included body: " + JSON.stringify(req.body))
+  }
+  next();
+});
+
 app.all("/", (req, res) => {
   if (SystemStarted == true) {
     try {
