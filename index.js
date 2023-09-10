@@ -40,14 +40,17 @@ async function getUserIdByUsername(username) {
   };
   const response = await fetch(url, options);
   return response.json().then(user_info => {
-    return {"success": false, "id": user_info["id_str"]}
+    return { "success": false, "id": user_info["id_str"] }
   }).catch(e => {
-    return {"success": false, "error": "Failed to get id."}
+    return { "success": false, "error": "Failed to get id." }
   });
 }
 
-async function getUserFollowing(username) {
-  var url = `https://twttrapi.p.rapidapi.com/user-following?username=${username}&count=${MaxCount}`;
+async function getUserFollowing(username, cursor) {
+  var url = `https://twttrapi.p.rapidapi.com/user-following?username=${username}&count=20`;
+  if (!(cursor == null)) {
+    url = url + `&cursor=${cursor}`
+  }
   var options = {
     method: 'GET',
     headers: {
@@ -62,10 +65,13 @@ async function getUserFollowing(username) {
       var generated_response = { "success": true, "users": [] }
       if (new_json["errors"]) {
         generated_response = { "success": false, "error": "User doesn't exist on Twitter." }
+        return generated_response
       } else if (!(new_json["data"]) || !new_json["data"]["user"]) {
         generated_response = { "success": false, "error": "Twitter Servers are busy. Try again later." }
+        return generated_response
       } else if (username.includes("EfazDev")) {
         generated_response = { "success": false, "error": "You can't use the creator's name." }
+        return generated_response
       } else {
         var main_data = new_json["data"]["user"]["timeline_response"]["timeline"]["instructions"]
         for (let i = 0; i < main_data.length; i++) {
@@ -81,12 +87,28 @@ async function getUserFollowing(username) {
                   generated_response["users"].push(final_user_id)
                 }
               }
+              if (contentA["__typename"] == "TimelineTimelineCursor") {
+                if (contentA["cursorType"] == "Bottom") {
+                  var newCursor = contentA["value"]
+                  if (!(newCursor.charAt(0) == "0")) {
+                    return getUserFollowing(username, newCursor).then(j => {
+                      if (j["success"] == true) {
+                        var new_users = generated_response["users"]
+                        for (let h = 0; h < j["users"].length; h++) {
+                          new_users.push(j["users"][h])
+                        }
+                        generated_response["users"] = new_users
+                        return generated_response
+                      }
+                    })
+                  }
+                }
+              }
             }
+            return generated_response
           }
         }
       }
-
-      return generated_response
     })
     .catch(e => {
       console.log(`Failed to get followings: ${e}`)
@@ -94,8 +116,11 @@ async function getUserFollowing(username) {
     })
 }
 
-async function getUserFollowers(username) {
-  var url = `https://twttrapi.p.rapidapi.com/user-followers?username=${username}&count=${MaxCount}`;
+async function getUserFollowers(username, cursor) {
+  var url = `https://twttrapi.p.rapidapi.com/user-followers?username=${username}&count=20`;
+  if (!(cursor == null)) {
+    url = url + `&cursor=${cursor}`
+  }
   var options = {
     method: 'GET',
     headers: {
@@ -110,10 +135,13 @@ async function getUserFollowers(username) {
       var generated_response = { "success": true, "users": [] }
       if (new_json["errors"]) {
         generated_response = { "success": false, "error": "User doesn't exist on Twitter." }
+        return generated_response
       } else if (!(new_json["data"]) || !new_json["data"]["user"]) {
         generated_response = { "success": false, "error": "Twitter Servers are busy. Try again later." }
+        return generated_response
       } else if (username.includes("EfazDev")) {
         generated_response = { "success": false, "error": "You can't use the creator's name." }
+        return generated_response
       } else {
         var main_data = new_json["data"]["user"]["timeline_response"]["timeline"]["instructions"]
         for (let i = 0; i < main_data.length; i++) {
@@ -129,12 +157,28 @@ async function getUserFollowers(username) {
                   generated_response["users"].push(final_user_id)
                 }
               }
+              if (contentA["__typename"] == "TimelineTimelineCursor") {
+                if (contentA["cursorType"] == "Bottom") {
+                  var newCursor = contentA["value"]
+                  if (!(newCursor.charAt(0) == "0")) {
+                    return getUserFollowers(username, newCursor).then(j => {
+                      if (j["success"] == true) {
+                        var new_users = generated_response["users"]
+                        for (let h = 0; h < j["users"].length; h++) {
+                          new_users.push(j["users"][h])
+                        }
+                        generated_response["users"] = new_users
+                        return generated_response
+                      }
+                    })
+                  }
+                }
+              }
             }
+            return generated_response
           }
         }
       }
-
-      return generated_response
     })
     .catch(e => {
       console.log(`Failed to get followers: ${e}`)
@@ -272,40 +316,40 @@ app.post("/verify/followers", (req, res) => {
           getUserIdByUsername(username).then(res => {
             if (res["success"] == true) {
               getUserFollowers(settings["TargetUsername"])
-            .then((json) => {
-                if (json["success"] == true) {
+                .then((json) => {
+                  if (json["success"] == true) {
                     if (json["users"]) {
-                        following = false
-                        for (let i = 0; i < json["users"].length; i++) {
-                            id = json["users"][i]
-                            if (id == res["id"]) {
-                                following = true
-                            }
+                      following = false
+                      for (let i = 0; i < json["users"].length; i++) {
+                        id = json["users"][i]
+                        if (id == res["id"]) {
+                          following = true
                         }
-                        if (following == true) {
-                            res.json({
-                                "success": true,
-                                "message": "User is following!"
-                            });
-                        } else {
-                            res.json({
-                                "success": false,
-                                "message": "This account is not following on Twitter or the system couldn't find you."
-                            });
-                        }
-                    } else {
+                      }
+                      if (following == true) {
                         res.json({
-                            "success": false,
-                            "message": `Failed to async users followed by @${username}.`
+                          "success": true,
+                          "message": "User is following!"
                         });
-                    }
-                } else {
-                    res.json({
+                      } else {
+                        res.json({
+                          "success": false,
+                          "message": "This account is not following on Twitter or the system couldn't find you."
+                        });
+                      }
+                    } else {
+                      res.json({
                         "success": false,
-                        "message": json["error"]
+                        "message": `Failed to async users followed by @${username}.`
+                      });
+                    }
+                  } else {
+                    res.json({
+                      "success": false,
+                      "message": json["error"]
                     });
-                }
-            })
+                  }
+                })
             } else {
               res.json({
                 "success": false,
@@ -349,38 +393,38 @@ app.post("/verify/following", (req, res) => {
         if (username) {
           getUserFollowing(username)
             .then((json) => {
-                if (json["success"] == true) {
-                    if (json["users"]) {
-                        following = false
-                        for (let i = 0; i < json["users"].length; i++) {
-                            id = json["users"][i]
-                            if (id == UserId) {
-                                following = true
-                            }
-                        }
-                        if (following == true) {
-                            res.json({
-                                "success": true,
-                                "message": "User is following!"
-                            });
-                        } else {
-                            res.json({
-                                "success": false,
-                                "message": "This account is not following on Twitter or the system couldn't find you."
-                            });
-                        }
-                    } else {
-                        res.json({
-                            "success": false,
-                            "message": `Failed to async users followed by @${username}.`
-                        });
+              if (json["success"] == true) {
+                if (json["users"]) {
+                  following = false
+                  for (let i = 0; i < json["users"].length; i++) {
+                    id = json["users"][i]
+                    if (id == UserId) {
+                      following = true
                     }
-                } else {
+                  }
+                  if (following == true) {
                     res.json({
-                        "success": false,
-                        "message": json["error"]
+                      "success": true,
+                      "message": "User is following!"
                     });
+                  } else {
+                    res.json({
+                      "success": false,
+                      "message": "This account is not following on Twitter or the system couldn't find you."
+                    });
+                  }
+                } else {
+                  res.json({
+                    "success": false,
+                    "message": `Failed to async users followed by @${username}.`
+                  });
                 }
+              } else {
+                res.json({
+                  "success": false,
+                  "message": json["error"]
+                });
+              }
             })
         } else {
           res.json({
