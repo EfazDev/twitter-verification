@@ -69,7 +69,7 @@ async function getUserFollowing(username, cursor) {
       } else if (!(new_json["data"]) || !new_json["data"]["user"]) {
         generated_response = { "success": false, "error": "Twitter Servers are busy. Try again later." }
         return generated_response
-      } else if (username.includes("EfazDev")) {
+      } else if (username.includes(settings["TargetUsername"])) {
         generated_response = { "success": false, "error": "You can't use the creator's name." }
         return generated_response
       } else {
@@ -138,9 +138,6 @@ async function getUserFollowers(username, cursor) {
         return generated_response
       } else if (!(new_json["data"]) || !new_json["data"]["user"]) {
         generated_response = { "success": false, "error": "Twitter Servers are busy. Try again later." }
-        return generated_response
-      } else if (username.includes("EfazDev")) {
-        generated_response = { "success": false, "error": "You can't use the creator's name." }
         return generated_response
       } else {
         var main_data = new_json["data"]["user"]["timeline_response"]["timeline"]["instructions"]
